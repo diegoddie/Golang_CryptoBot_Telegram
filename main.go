@@ -34,7 +34,7 @@ func main() {
 		log.Fatalf("Errore durante la migrazione: %v", err)
 	}
 
-	alertMonitor := services.NewAlertMonitor(db, 1*time.Minute)
+	alertMonitor := services.NewAlertMonitor(db, 5*time.Minute)
 	alertMonitor.Start()
 	defer alertMonitor.Stop()
 
