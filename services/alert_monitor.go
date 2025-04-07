@@ -125,12 +125,20 @@ func (am *AlertMonitor) processSingleAlert(alert *models.Alert) error {
 
 // sendTelegramNotification invia una notifica Telegram
 func (am *AlertMonitor) sendTelegramNotification(alert *models.Alert) {
-	if am.telegramNotifyCh != nil {
-		select {
-		case am.telegramNotifyCh <- alert:
-			log.Printf("[AlertMonitor] Notifica Telegram inviata per alert ID %d", alert.ID)
-		default:
-			log.Printf("[AlertMonitor] Buffer di notifiche Telegram pieno, impossibile inviare notifica per alert ID %d", alert.ID)
-		}
+	log.Printf("[AlertMonitor] Tentativo di invio notifica Telegram per alert ID %d...", alert.ID)
+
+	// Controllo se il canale è stato configurato
+	if am.telegramNotifyCh == nil {
+		log.Printf("[AlertMonitor] ⚠️ ERRORE: canale notifiche Telegram non configurato!")
+		return
+	}
+
+	log.Printf("[AlertMonitor] Canale notifiche Telegram presente, invio notifica...")
+
+	select {
+	case am.telegramNotifyCh <- alert:
+		log.Printf("[AlertMonitor] ✅ Notifica Telegram inviata con successo per alert ID %d", alert.ID)
+	default:
+		log.Printf("[AlertMonitor] ⚠️ Buffer di notifiche Telegram pieno, impossibile inviare notifica per alert ID %d", alert.ID)
 	}
 }

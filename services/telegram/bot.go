@@ -40,24 +40,43 @@ func NewTelegramBot(token string, db *gorm.DB) (*TelegramBot, error) {
 
 // Start avvia il bot e inizia ad ascoltare i messaggi e le notifiche
 func (t *TelegramBot) Start() {
+	log.Println("[Telegram] Avvio del bot in corso...")
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 
+	log.Println("[Telegram] Configurazione del canale updates completata, richiesta updates a Telegram...")
+
 	updates := t.bot.GetUpdatesChan(u)
+	log.Printf("[Telegram] Canale updates ottenuto con successo: %v", updates != nil)
 
 	// Gestisce i messaggi in arrivo
+	log.Println("[Telegram] Avvio goroutine di gestione messaggi...")
 	go func() {
+		log.Println("[Telegram] Goroutine di ascolto messaggi avviata")
+		messageCount := 0
+
 		for update := range updates {
+			messageCount++
+			log.Printf("[Telegram] Ricevuto update #%d da Telegram", messageCount)
+
 			if update.Message == nil {
+				log.Println("[Telegram] Update senza messaggio, ignoro")
 				continue
 			}
 
 			// Memorizza l'ID della chat per le notifiche future
 			t.registerChatID(update.Message.Chat.ID)
 
+			chatID := update.Message.Chat.ID
+			log.Printf("[Telegram] Processando messaggio da chat ID %d: %s", chatID, update.Message.Text)
+
 			go t.handleMessage(update.Message)
 		}
+
+		log.Println("[Telegram] Loop di aggiornamenti interrotto! Il bot non riceverà più messaggi!")
 	}()
+
+	log.Println("[Telegram] Bot avviato correttamente e in ascolto di messaggi")
 }
 
 // registerChatID registra un ID chat per future notifiche

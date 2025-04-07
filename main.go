@@ -43,11 +43,18 @@ func main() {
 	if telegramToken == "" {
 		log.Println("TELEGRAM_BOT_TOKEN non impostato, il bot Telegram non sarà avviato")
 	} else {
+		log.Printf("Avvio del bot Telegram con token: %s***", telegramToken[:10])
+
 		bot, err := telegram.NewTelegramBot(telegramToken, db)
 		if err != nil {
-			log.Printf("Errore nell'inizializzazione del bot Telegram: %v", err)
+			log.Printf("⚠️ ERRORE nell'inizializzazione del bot Telegram: %v", err)
 		} else {
-			go bot.Start()
+			log.Println("Bot Telegram inizializzato correttamente, avvio in corso...")
+			go func() {
+				log.Println("Goroutine bot Telegram avviata")
+				bot.Start()
+				log.Println("Bot Telegram terminato")
+			}()
 			log.Println("Bot Telegram avviato con successo")
 
 			// Collega il canale di notifica del bot al monitor degli alert
