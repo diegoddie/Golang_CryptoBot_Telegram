@@ -15,7 +15,7 @@ func InitDB() *gorm.DB {
 	// Carica le variabili d'ambiente
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatalf("Errore nel caricare il file .env: %v", err)
+		log.Println("File .env non trovato, uso variabili d'ambiente del sistema")
 	}
 
 	// Ottieni la stringa di connessione dal file .env
