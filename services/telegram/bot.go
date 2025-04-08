@@ -196,13 +196,16 @@ func (t *TelegramBot) handleCreateAlert(message *tgbotapi.Message) {
 	}
 
 	// Crea l'alert utilizzando le stesse logiche dei controller
+	// Usa UTC per i timestamp nel database
+	now := time.Now().UTC()
 	alert := models.Alert{
 		CryptoID:       coinID,
 		ThresholdPrice: thresholdPrice,
 		CurrentPrice:   price,
 		Triggered:      false,
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
+		CreatedAt:      now,
+		UpdatedAt:      now,
+		UserChatID:     message.Chat.ID, // Salva l'ID della chat dell'utente
 	}
 
 	if err := t.db.Create(&alert).Error; err != nil {
@@ -210,8 +213,10 @@ func (t *TelegramBot) handleCreateAlert(message *tgbotapi.Message) {
 		return
 	}
 
-	t.sendMessage(message.Chat.ID, fmt.Sprintf("✅ Alert creato! ID: %d\nCrypto: %s\nSoglia: $%.2f\nPrezzo attuale: $%.2f",
-		alert.ID, alert.CryptoID, alert.ThresholdPrice, alert.CurrentPrice))
+	// Converti la data in fuso orario italiano solo per la visualizzazione
+	createdAtLocal := alert.CreatedAt.In(italianTimezone)
+	t.sendMessage(message.Chat.ID, fmt.Sprintf("✅ Alert creato! ID: %d\nCrypto: %s\nSoglia: $%.2f\nPrezzo attuale: $%.2f\nCreato il: %s (CET)",
+		alert.ID, alert.CryptoID, alert.ThresholdPrice, alert.CurrentPrice, createdAtLocal.Format("02/01/2006 15:04")))
 }
 
 // handleUpdateAlert gestisce il comando /update_alert
@@ -235,10 +240,10 @@ func (t *TelegramBot) handleUpdateAlert(message *tgbotapi.Message) {
 		return
 	}
 
-	// Verifica che l'alert esista
+	// Verifica che l'alert esista e appartenga all'utente corrente
 	var alert models.Alert
-	if err := t.db.First(&alert, id).Error; err != nil {
-		t.sendMessage(message.Chat.ID, "Alert non trovato.")
+	if err := t.db.Where("id = ? AND user_chat_id = ?", id, message.Chat.ID).First(&alert).Error; err != nil {
+		t.sendMessage(message.Chat.ID, "Alert non trovato o non hai i permessi per modificarlo.")
 		return
 	}
 
@@ -267,7 +272,7 @@ func (t *TelegramBot) handleUpdateAlert(message *tgbotapi.Message) {
 		alert.Triggered = false
 	}
 
-	alert.UpdatedAt = time.Now()
+	alert.UpdatedAt = time.Now().UTC()
 
 	// Salva le modifiche
 	if err := t.db.Save(&alert).Error; err != nil {
@@ -294,7 +299,8 @@ func (t *TelegramBot) handleUpdateAlert(message *tgbotapi.Message) {
 func (t *TelegramBot) handleGetAlerts(message *tgbotapi.Message) {
 	var alerts []models.Alert
 
-	if err := t.db.Find(&alerts).Error; err != nil {
+	// Filtra gli alert per l'ID della chat dell'utente corrente
+	if err := t.db.Where("user_chat_id = ?", message.Chat.ID).Find(&alerts).Error; err != nil {
 		t.sendMessage(message.Chat.ID, fmt.Sprintf("Errore nel recupero degli alert: %v", err))
 		return
 	}
@@ -305,7 +311,7 @@ func (t *TelegramBot) handleGetAlerts(message *tgbotapi.Message) {
 	}
 
 	var response strings.Builder
-	response.WriteString("📊 Tutti gli alert:\n\n")
+	response.WriteString("📊 I tuoi alert:\n\n")
 
 	for _, alert := range alerts {
 		status := "⏳ In attesa"
@@ -331,7 +337,8 @@ func (t *TelegramBot) handleGetAlerts(message *tgbotapi.Message) {
 func (t *TelegramBot) handleGetActiveAlerts(message *tgbotapi.Message) {
 	var alerts []models.Alert
 
-	if err := t.db.Where("triggered = ?", false).Find(&alerts).Error; err != nil {
+	// Filtra gli alert per l'ID della chat dell'utente corrente e non triggerati
+	if err := t.db.Where("user_chat_id = ? AND triggered = ?", message.Chat.ID, false).Find(&alerts).Error; err != nil {
 		t.sendMessage(message.Chat.ID, fmt.Sprintf("Errore nel recupero degli alert attivi: %v", err))
 		return
 	}
@@ -342,7 +349,7 @@ func (t *TelegramBot) handleGetActiveAlerts(message *tgbotapi.Message) {
 	}
 
 	var response strings.Builder
-	response.WriteString("⚡ Alert attivi:\n\n")
+	response.WriteString("⚡ I tuoi alert attivi:\n\n")
 
 	for _, alert := range alerts {
 		createdAt := fmt.Sprintf("Creato il: %s (CET)", alert.CreatedAt.In(italianTimezone).Format("02/01/2006 15:04"))
@@ -369,8 +376,9 @@ func (t *TelegramBot) handleGetAlert(message *tgbotapi.Message) {
 	}
 
 	var alert models.Alert
-	if err := t.db.First(&alert, id).Error; err != nil {
-		t.sendMessage(message.Chat.ID, "Alert non trovato.")
+	// Filtra per id dell'alert e utente corrente
+	if err := t.db.Where("id = ? AND user_chat_id = ?", id, message.Chat.ID).First(&alert).Error; err != nil {
+		t.sendMessage(message.Chat.ID, "Alert non trovato o non hai i permessi per visualizzarlo.")
 		return
 	}
 
@@ -405,15 +413,15 @@ func (t *TelegramBot) handleDeleteAlert(message *tgbotapi.Message) {
 		return
 	}
 
-	// Prima verifica che l'alert esista
+	// Prima verifica che l'alert esista e appartenga all'utente corrente
 	var alert models.Alert
-	if err := t.db.First(&alert, id).Error; err != nil {
-		t.sendMessage(message.Chat.ID, "Alert non trovato.")
+	if err := t.db.Where("id = ? AND user_chat_id = ?", id, message.Chat.ID).First(&alert).Error; err != nil {
+		t.sendMessage(message.Chat.ID, "Alert non trovato o non hai i permessi per eliminarlo.")
 		return
 	}
 
 	// Procedi con l'eliminazione
-	if err := t.db.Delete(&models.Alert{}, id).Error; err != nil {
+	if err := t.db.Delete(&alert).Error; err != nil {
 		t.sendMessage(message.Chat.ID, fmt.Sprintf("Errore nella cancellazione: %v", err))
 		return
 	}
@@ -446,19 +454,15 @@ func (t *TelegramBot) GetNotificationChannel() chan *models.Alert {
 
 // sendAlertNotification invia una notifica quando un alert viene triggerato
 func (t *TelegramBot) sendAlertNotification(alert *models.Alert) {
-	chatIDs := t.GetAllChatIDs()
+	// Invia la notifica solo all'utente che ha creato l'alert
+	chatID := alert.UserChatID
 
-	if len(chatIDs) == 0 {
-		log.Printf("[Telegram] Alert ID %d triggerato, ma nessun utente registrato", alert.ID)
-		return
-	}
+	// Formatta l'ora corrente in timezone italiano per visualizzazione
+	currentTime := time.Now().In(italianTimezone)
 
 	message := fmt.Sprintf("🚨 ALERT TRIGGERATO! 🚨\n\nID: %d\nCrypto: %s\nSoglia: $%.2f\nPrezzo attuale: $%.2f\nData: %s (CET)",
-		alert.ID, alert.CryptoID, alert.ThresholdPrice, alert.CurrentPrice, time.Now().In(italianTimezone).Format("02/01/2006 15:04"))
+		alert.ID, alert.CryptoID, alert.ThresholdPrice, alert.CurrentPrice, currentTime.Format("02/01/2006 15:04"))
 
-	log.Printf("[Telegram] Invio notifica di alert triggerato a %d utenti", len(chatIDs))
-
-	for _, chatID := range chatIDs {
-		t.sendMessage(chatID, message)
-	}
+	log.Printf("[Telegram] Invio notifica di alert triggerato all'utente %d", chatID)
+	t.sendMessage(chatID, message)
 }

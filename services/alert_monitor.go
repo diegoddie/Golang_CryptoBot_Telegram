@@ -99,7 +99,7 @@ func (am *AlertMonitor) processSingleAlert(alert *models.Alert) error {
 
 	// Aggiorna il prezzo corrente
 	alert.CurrentPrice = price
-	now := time.Now()
+	now := time.Now().UTC() // Usa UTC per i timestamp nel database
 	alert.UpdatedAt = now
 
 	// Salva le vecchie informazioni per decidere se inviare notifiche

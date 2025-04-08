@@ -18,6 +18,7 @@ func CreateAlert(db *gorm.DB) gin.HandlerFunc {
 		var input struct {
 			CryptoID       string  `json:"crypto_id" binding:"required"`
 			ThresholdPrice float64 `json:"threshold_price" binding:"required"`
+			UserChatID     int64   `json:"user_chat_id"`
 		}
 
 		if err := c.ShouldBindJSON(&input); err != nil {
@@ -40,6 +41,7 @@ func CreateAlert(db *gorm.DB) gin.HandlerFunc {
 			Triggered:      false,
 			CreatedAt:      time.Now(),
 			UpdatedAt:      time.Now(),
+			UserChatID:     input.UserChatID,
 		}
 
 		if err := db.Create(&alert).Error; err != nil {
@@ -55,7 +57,17 @@ func CreateAlert(db *gorm.DB) gin.HandlerFunc {
 func GetAlerts(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var alerts []models.Alert
-		if err := db.Find(&alerts).Error; err != nil {
+		userChatIDStr := c.Query("user_chat_id")
+		query := db
+
+		if userChatIDStr != "" {
+			userChatID, err := strconv.ParseInt(userChatIDStr, 10, 64)
+			if err == nil {
+				query = query.Where("user_chat_id = ?", userChatID)
+			}
+		}
+
+		if err := query.Find(&alerts).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Errore nel recupero degli alert"})
 			return
 		}
@@ -142,9 +154,17 @@ func DeleteAlert(db *gorm.DB) gin.HandlerFunc {
 func GetActiveAlerts(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var alerts []models.Alert
+		userChatIDStr := c.Query("user_chat_id")
+		query := db.Where("triggered = ?", false)
 
-		// Ottiene solo gli alert con Triggered = false
-		if err := db.Where("triggered = ?", false).Find(&alerts).Error; err != nil {
+		if userChatIDStr != "" {
+			userChatID, err := strconv.ParseInt(userChatIDStr, 10, 64)
+			if err == nil {
+				query = query.Where("user_chat_id = ?", userChatID)
+			}
+		}
+
+		if err := query.Find(&alerts).Error; err != nil {
 			log.Printf("Errore nel recupero degli alert attivi: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Errore nel recupero degli alert attivi"})
 			return

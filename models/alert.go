@@ -7,6 +7,7 @@ import (
 // Alert rappresenta una soglia di prezzo per una criptovaluta
 type Alert struct {
 	ID             uint       `gorm:"primaryKey"`
+	UserChatID     int64      `gorm:"index;not null;default:0"`                                 // ID della chat Telegram dell'utente che ha creato l'alert
 	CryptoID       string     `gorm:"column:cryptocurrency_id;type:varchar(50);not null;index"` // ID della criptovaluta per CoinGecko (es. "bitcoin", "ethereum")
 	ThresholdPrice float64    `gorm:"type:decimal(20,8);not null"`                              // Prezzo soglia per l'alert
 	CurrentPrice   float64    `gorm:"type:decimal(20,8);"`                                      // Prezzo corrente (ultimo noto)
