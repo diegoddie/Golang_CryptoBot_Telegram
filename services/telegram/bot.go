@@ -314,12 +314,14 @@ func (t *TelegramBot) handleGetAlerts(message *tgbotapi.Message) {
 		if alert.Triggered {
 			status = "✅ Triggerato"
 			if alert.NotifiedAt != nil {
-				triggerInfo = fmt.Sprintf("Triggerato il: %s\n", alert.NotifiedAt.In(italianTimezone).Format("02/01/2006 15:04"))
+				triggerInfo = fmt.Sprintf("Triggerato il: %s (CET)\n", alert.NotifiedAt.In(italianTimezone).Format("02/01/2006 15:04"))
 			}
 		}
 
-		response.WriteString(fmt.Sprintf("ID: %d | %s\nCrypto: %s\nSoglia: $%.2f\nPrezzo attuale: $%.2f\n%s\n",
-			alert.ID, status, alert.CryptoID, alert.ThresholdPrice, alert.CurrentPrice, triggerInfo))
+		createdAt := fmt.Sprintf("Creato il: %s (CET)\n", alert.CreatedAt.In(italianTimezone).Format("02/01/2006 15:04"))
+
+		response.WriteString(fmt.Sprintf("ID: %d | %s\nCrypto: %s\nSoglia: $%.2f\nPrezzo attuale: $%.2f\n%s%s\n",
+			alert.ID, status, alert.CryptoID, alert.ThresholdPrice, alert.CurrentPrice, createdAt, triggerInfo))
 	}
 
 	t.sendMessage(message.Chat.ID, response.String())
@@ -343,8 +345,10 @@ func (t *TelegramBot) handleGetActiveAlerts(message *tgbotapi.Message) {
 	response.WriteString("⚡ Alert attivi:\n\n")
 
 	for _, alert := range alerts {
-		response.WriteString(fmt.Sprintf("ID: %d\nCrypto: %s\nSoglia: $%.2f\nPrezzo attuale: $%.2f\n\n",
-			alert.ID, alert.CryptoID, alert.ThresholdPrice, alert.CurrentPrice))
+		createdAt := fmt.Sprintf("Creato il: %s (CET)", alert.CreatedAt.In(italianTimezone).Format("02/01/2006 15:04"))
+
+		response.WriteString(fmt.Sprintf("ID: %d\nCrypto: %s\nSoglia: $%.2f\nPrezzo attuale: $%.2f\n%s\n\n",
+			alert.ID, alert.CryptoID, alert.ThresholdPrice, alert.CurrentPrice, createdAt))
 	}
 
 	t.sendMessage(message.Chat.ID, response.String())
@@ -375,11 +379,13 @@ func (t *TelegramBot) handleGetAlert(message *tgbotapi.Message) {
 		status = "✅ Triggerato"
 	}
 
-	response := fmt.Sprintf("🔔 Alert #%d\n\nCrypto: %s\nSoglia: $%.2f\nPrezzo attuale: $%.2f\nStato: %s",
-		alert.ID, alert.CryptoID, alert.ThresholdPrice, alert.CurrentPrice, status)
+	createdAt := fmt.Sprintf("Creato il: %s (CET)", alert.CreatedAt.In(italianTimezone).Format("02/01/2006 15:04"))
+
+	response := fmt.Sprintf("🔔 Alert #%d\n\nCrypto: %s\nSoglia: $%.2f\nPrezzo attuale: $%.2f\nStato: %s\n%s",
+		alert.ID, alert.CryptoID, alert.ThresholdPrice, alert.CurrentPrice, status, createdAt)
 
 	if alert.Triggered && alert.NotifiedAt != nil {
-		response += fmt.Sprintf("\nTriggerato il: %s", alert.NotifiedAt.In(italianTimezone).Format("02/01/2006 15:04"))
+		response += fmt.Sprintf("\nTriggerato il: %s (CET)", alert.NotifiedAt.In(italianTimezone).Format("02/01/2006 15:04"))
 	}
 
 	t.sendMessage(message.Chat.ID, response)
@@ -447,8 +453,8 @@ func (t *TelegramBot) sendAlertNotification(alert *models.Alert) {
 		return
 	}
 
-	message := fmt.Sprintf("🚨 ALERT TRIGGERATO! 🚨\n\nID: %d\nCrypto: %s\nSoglia: $%.2f\nPrezzo attuale: $%.2f\nData: %s",
-		alert.ID, alert.CryptoID, alert.ThresholdPrice, alert.CurrentPrice, time.Now().In(italianTimezone).Format("02/01/2006 15:04 MST"))
+	message := fmt.Sprintf("🚨 ALERT TRIGGERATO! 🚨\n\nID: %d\nCrypto: %s\nSoglia: $%.2f\nPrezzo attuale: $%.2f\nData: %s (CET)",
+		alert.ID, alert.CryptoID, alert.ThresholdPrice, alert.CurrentPrice, time.Now().In(italianTimezone).Format("02/01/2006 15:04"))
 
 	log.Printf("[Telegram] Invio notifica di alert triggerato a %d utenti", len(chatIDs))
 
