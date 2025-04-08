@@ -14,6 +14,9 @@ import (
 	"gorm.io/gorm"
 )
 
+// Timezone italiano (UTC+2)
+var italianTimezone, _ = time.LoadLocation("Europe/Rome")
+
 // TelegramBot gestisce l'interazione con il bot Telegram
 type TelegramBot struct {
 	bot      *tgbotapi.BotAPI
@@ -158,7 +161,8 @@ func (t *TelegramBot) handlePrice(message *tgbotapi.Message) {
 		return
 	}
 
-	coinID := args[0]
+	// Converti l'ID in lowercase per evitare problemi con maiuscole/minuscole
+	coinID := strings.ToLower(args[0])
 	price, err := controllers.GetPriceUSD(coinID)
 	if err != nil {
 		t.sendMessage(message.Chat.ID, fmt.Sprintf("Errore: %v", err))
@@ -176,7 +180,8 @@ func (t *TelegramBot) handleCreateAlert(message *tgbotapi.Message) {
 		return
 	}
 
-	coinID := args[0]
+	// Converti l'ID in lowercase
+	coinID := strings.ToLower(args[0])
 	thresholdPrice, err := strconv.ParseFloat(args[1], 64)
 	if err != nil {
 		t.sendMessage(message.Chat.ID, "Prezzo non valido. Usa un numero decimale.")
@@ -309,7 +314,7 @@ func (t *TelegramBot) handleGetAlerts(message *tgbotapi.Message) {
 		if alert.Triggered {
 			status = "✅ Triggerato"
 			if alert.NotifiedAt != nil {
-				triggerInfo = fmt.Sprintf("Triggerato il: %s\n", alert.NotifiedAt.Format("02/01/2006 15:04"))
+				triggerInfo = fmt.Sprintf("Triggerato il: %s\n", alert.NotifiedAt.In(italianTimezone).Format("02/01/2006 15:04"))
 			}
 		}
 
@@ -374,7 +379,7 @@ func (t *TelegramBot) handleGetAlert(message *tgbotapi.Message) {
 		alert.ID, alert.CryptoID, alert.ThresholdPrice, alert.CurrentPrice, status)
 
 	if alert.Triggered && alert.NotifiedAt != nil {
-		response += fmt.Sprintf("\nTriggerato il: %s", alert.NotifiedAt.Format("02/01/2006 15:04"))
+		response += fmt.Sprintf("\nTriggerato il: %s", alert.NotifiedAt.In(italianTimezone).Format("02/01/2006 15:04"))
 	}
 
 	t.sendMessage(message.Chat.ID, response)
@@ -443,7 +448,7 @@ func (t *TelegramBot) sendAlertNotification(alert *models.Alert) {
 	}
 
 	message := fmt.Sprintf("🚨 ALERT TRIGGERATO! 🚨\n\nID: %d\nCrypto: %s\nSoglia: $%.2f\nPrezzo attuale: $%.2f\nData: %s",
-		alert.ID, alert.CryptoID, alert.ThresholdPrice, alert.CurrentPrice, time.Now().Format("02/01/2006 15:04"))
+		alert.ID, alert.CryptoID, alert.ThresholdPrice, alert.CurrentPrice, time.Now().In(italianTimezone).Format("02/01/2006 15:04 MST"))
 
 	log.Printf("[Telegram] Invio notifica di alert triggerato a %d utenti", len(chatIDs))
 
