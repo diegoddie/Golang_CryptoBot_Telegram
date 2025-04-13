@@ -68,7 +68,7 @@ func main() {
 
 	// Configurazione CORS
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"https://golang-cryptobot-telegram.onrender.com", "http://localhost:8080", "http://localhost:3000"},
+		AllowOrigins:     []string{"https://golangcryptobottelegram-production.up.railway.app/", "http://localhost:8080", "http://localhost:3000"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
